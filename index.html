@@ -582,7 +582,7 @@
       </div>
       SpendGuard
     </div>
-    <button class="new-chat-btn" onclick="location.reload()">
+    <button class="new-chat-btn" onclick="startNewAnalysis()">
       <span class="material-symbols-rounded" style="font-size:18px;">add</span> New Analysis
     </button>
     <div style="margin-top: 24px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform:uppercase;">Recent Analyses</div>
@@ -607,8 +607,6 @@
     </header>
 
     <main class="chat-container" id="scrollContainer">
-      <div class="chat-stream-inner" id="chatStream">
-        
         <div class="hero" id="heroView">
           <h1 class="gradient-text">Your AI CFO for Spend Intelligence</h1>
           <p>Upload your transaction ledger to instantly uncover hidden costs, detect anomalies, and receive actionable financial decisions.</p>
@@ -629,12 +627,12 @@
           </div>
         </div>
 
-        <div class="thinking-state" id="thinkingIndicator">
-          <div class="ai-circle"><div class="ai-circle-inner"></div></div>
-          <span id="thinkingText">Preparing secure environment...</span>
+        <div class="chat-stream-inner" id="chatStream" style="display: none;">
+          <div class="thinking-state" id="thinkingIndicator">
+            <div class="ai-circle"><div class="ai-circle-inner"></div></div>
+            <span id="thinkingText">Preparing secure environment...</span>
+          </div>
         </div>
-
-      </div>
     </main>
 
     <!-- Input Box -->
@@ -662,6 +660,41 @@
   </div>
 
   <script>
+    // State Control Functions
+    function showHero() {
+      document.getElementById("heroView").style.display = "block";
+      document.getElementById("chatStream").style.display = "none";
+    }
+
+    function showAnalysis() {
+      document.getElementById("heroView").style.display = "none";
+      document.getElementById("chatStream").style.display = "block";
+    }
+
+    function startNewAnalysis() {
+      // Clear stored session
+      localStorage.removeItem("spendguard_last_id");
+      localStorage.removeItem("spendguard_last_filename");
+
+      // Hard reset UI
+      document.getElementById("chatStream").innerHTML = `
+          <div class="thinking-state" id="thinkingIndicator">
+            <div class="ai-circle"><div class="ai-circle-inner"></div></div>
+            <span id="thinkingText">Preparing secure environment...</span>
+          </div>
+      `;
+      
+      // Reset file input
+      const fileInput = document.getElementById("fileInput");
+      if(fileInput) fileInput.value = "";
+      clearFile(); // Also clear the chip
+
+      showHero();
+
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
     // System logic for SpendGuard UI - using config
     const API_BASE_URL = window.CONFIG?.API_BASE_URL;
 
@@ -803,7 +836,7 @@
             
             item.onclick = async (e) => {
                  if(e.target.closest('.delete-btn')) return; // ignore if delete clicked
-                 if (heroView) heroView.style.display = 'none';
+                 showAnalysis();
                  chatStream.querySelectorAll('.message').forEach(m => m.remove());
                  chartInstances.forEach(c => c.destroy());
                  chartInstances = [];
@@ -1129,6 +1162,7 @@
     }
 
     async function displayAnalysis(data, filename, isRefresh = false) {
+          showAnalysis();
           const fileCurrency = data.insights.currency || '₹';
           
           // Only overwrite global currency if it's a new file analysis or first load
@@ -1460,6 +1494,7 @@
                     const restoredData = await res.json();
                     if (restoredData && restoredData.payload) {
                         currentData = restoredData.payload;
+                        showAnalysis();
                         // Synchronize filename in case it was renamed
                         const updatedName = restoredData.filename || lastFilename;
                         await displayAnalysis(currentData, updatedName);
