@@ -1049,13 +1049,15 @@
     console.log("Using API:", API_BASE_URL);
 
     // Initialize Supabase
-    const { createClient } = window.supabase;
-    const supabase = createClient(window.CONFIG.SUPABASE_URL, window.CONFIG.SUPABASE_ANON_KEY);
+    const supabaseClient = window.supabase.createClient(
+      window.CONFIG.SUPABASE_URL,
+      window.CONFIG.SUPABASE_ANON_KEY
+    );
 
     // Supabase DB Operations
     async function saveAnalysisToSupabase(data, filename) {
       try {
-        const { data: result, error } = await supabase
+        const { data: result, error } = await supabaseClient
           .from('analyses')
           .insert([{
             filename: filename,
@@ -1083,7 +1085,7 @@
     }
 
     async function renameAnalysisInSupabase(id, newName) {
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('analyses')
         .update({ filename: newName })
         .eq('id', id);
@@ -1094,7 +1096,7 @@
 
     async function getAnalysisHistory() {
       // Lazy load: Select only metadata
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('analyses')
         .select('id, filename, spend, currency, created_at')
         .order('created_at', { ascending: false });
@@ -1104,7 +1106,7 @@
     }
 
     async function getFullAnalysis(id) {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('analyses')
         .select('*')
         .eq('id', id)
@@ -1115,7 +1117,7 @@
     }
 
     async function deleteAnalysisFromSupabase(id) {
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('analyses')
         .delete()
         .eq('id', id);
@@ -1340,7 +1342,7 @@
           
           // Update Supabase with new AI insights
           try {
-            const { error: updateError } = await supabase
+            const { error: updateError } = await supabaseClient
               .from('analyses')
               .update({ 
                 ai_insights: currentData.ai_insights,
