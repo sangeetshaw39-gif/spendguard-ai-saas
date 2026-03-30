@@ -603,8 +603,12 @@
     .hero {
       text-align: center;
       margin: auto;
-      max-width: 650px;
-      padding-top: 8vh;
+      max-width: 800px;
+      padding-top: 4vh;
+      padding-bottom: 140px; /* Space for the input bar */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .hero h1 {
@@ -920,9 +924,9 @@
 
     <main class="chat-container" id="scrollContainer">
       <div class="hero" id="heroView">
-        <h1 class="gradient-text" style="font-size: 5rem; margin-bottom: 1rem; font-weight: 800; letter-spacing: -2px;">SpendGuardAI</h1>
-        <h2 class="gradient-text" style="font-size: 2rem; opacity: 0.9; margin-top: 0;">Your AI CFO for Spend Intelligence</h2>
-        <p>Upload your transaction ledger to instantly uncover hidden costs, detect anomalies, and receive actionable
+        <h1 class="gradient-text" style="font-size: 3.5rem; margin-bottom: 0.5rem; font-weight: 800; letter-spacing: -2px; line-height: 1.1;">SpendGuardAI</h1>
+        <h2 class="gradient-text" style="font-size: 1.5rem; opacity: 0.9; margin-top: 0; margin-bottom: 1.5rem;">Your AI CFO for Spend Intelligence</h2>
+        <p style="margin-bottom: 2rem; max-width: 600px;">Upload your transaction ledger to instantly uncover hidden costs, detect anomalies, and receive actionable
           financial decisions.</p>
 
         <div class="benefits-grid">
