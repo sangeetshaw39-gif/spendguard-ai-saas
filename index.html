@@ -1055,32 +1055,38 @@
     );
 
     // Supabase DB Operations
-    async function saveAnalysisToSupabase(data, filename) {
+    async function saveAnalysisToSupabase(data) {
+      console.log("Saving to Supabase:", data);
       try {
         const { data: result, error } = await supabaseClient
           .from('analyses')
           .insert([{
-            filename: filename,
-            spend: data.insights?.total_spend || 0,
-            currency: data.insights?.currency || activeCurrency,
+            filename: data.filename || "Untitled",
+            spend: data.insights?.total_spend || data.total_spend || 0,
+            currency: data.insights?.currency || data.currency || activeCurrency || "INR",
             ai_insights: data.ai_insights || "",
             payload: data,
-            user_id: null // Explicitly null for now
+            user_id: null
           }])
           .select();
 
-        if (error) throw error;
-        console.log("Saved to Supabase:", result);
+        if (error) {
+          console.error("Supabase insert error:", error);
+          throw error;
+        }
 
-        // Update local session storage with Supabase ID
+        console.log("Supabase insert success:", result);
+
         if (result && result[0]) {
-          localStorage.setItem('spendguard_last_id', result[0].id);
+          const inserted_id = result[0].id;
+          localStorage.setItem('spendguard_last_id', inserted_id);
+          console.log("Persisted Supabase ID to localStorage:", inserted_id);
         }
 
         loadHistory(); // Refresh sidebar
-        return result[0];
+        return result ? result[0] : null;
       } catch (err) {
-        console.error("Error saving to Supabase:", err);
+        console.error("Fatal error in saveAnalysisToSupabase:", err);
       }
     }
 
@@ -1543,11 +1549,8 @@
           if (data.status === 'error') throw new Error(data.message);
 
           // Save to Supabase
-          const savedRecord = await saveAnalysisToSupabase(data, filename);
-          if (savedRecord) {
-            // Update state with Supabase ID if needed
-            currentData.supabase_id = savedRecord.id;
-          }
+          data.filename = filename; // Attach filename for storage
+          await saveAnalysisToSupabase(data);
 
           // Display warnings if they exist (Surgical Fix)
           if (data.warnings && data.warnings.length > 0) {
@@ -1560,11 +1563,10 @@
             await streamHtmlMessage(warningHTML);
           }
 
-          // Save to persistent storage for refresh restoration
-          localStorage.setItem('spendguard_last_id', data.history_id);
+          // Save filename for UI display consistency
           localStorage.setItem('spendguard_last_filename', filename);
 
-          const totalSpend = data.insights.total_spend || 0;
+          const totalSpend = data.insights?.total_spend || 0;
           saveHistory(filename, totalSpend, data);
 
           await displayAnalysis(data, filename);
