@@ -1071,7 +1071,7 @@
 
         if (error) throw error;
         console.log("Saved to Supabase:", result);
-        
+
         // Update local session storage with Supabase ID
         if (result && result[0]) {
           localStorage.setItem('spendguard_last_id', result[0].id);
@@ -1339,17 +1339,17 @@
 
         if (data.status === 'success') {
           currentData = data.payload;
-          
+
           // Update Supabase with new AI insights
           try {
             const { error: updateError } = await supabaseClient
               .from('analyses')
-              .update({ 
+              .update({
                 ai_insights: currentData.ai_insights,
-                payload: currentData 
+                payload: currentData
               })
               .filter('payload->>history_id', 'eq', id); // Finding by backend ID in payload
-            
+
             if (updateError) console.warn("Failed to sync reanalysis to Supabase:", updateError);
           } catch (supaErr) {
             console.warn("Supabase update error during reanalysis:", supaErr);
@@ -1545,8 +1545,8 @@
           // Save to Supabase
           const savedRecord = await saveAnalysisToSupabase(data, filename);
           if (savedRecord) {
-              // Update state with Supabase ID if needed
-              currentData.supabase_id = savedRecord.id;
+            // Update state with Supabase ID if needed
+            currentData.supabase_id = savedRecord.id;
           }
 
           // Display warnings if they exist (Surgical Fix)
@@ -1929,6 +1929,7 @@
       clearInterval(msgInterval);
 
       // Session Restoration Logic
+      const lastId = localStorage.getItem("spendguard_last_id");
       if (lastId) {
         statusText.innerText = "Restoring latest session...";
         try {
