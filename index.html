@@ -1056,37 +1056,41 @@
 
     // Supabase DB Operations
     async function saveAnalysisToSupabase(data) {
-      console.log("Saving to Supabase:", data);
+      console.log("Preparing Supabase Insert:", data);
+      
+      const insertData = {
+        filename: data.filename || "Untitled",
+        spend: parseFloat(data.insights?.total_spend || data.total_spend || 0),
+        currency: data.insights?.currency || data.currency || activeCurrency || "INR",
+        ai_insights: data.ai_insights || "",
+        payload: data
+      };
+
       try {
         const { data: result, error } = await supabaseClient
           .from('analyses')
-          .insert([{
-            filename: data.filename || "Untitled",
-            spend: data.insights?.total_spend || data.total_spend || 0,
-            currency: data.insights?.currency || data.currency || activeCurrency || "INR",
-            ai_insights: data.ai_insights || "",
-            payload: data,
-            user_id: null
-          }])
+          .insert([insertData])
           .select();
 
         if (error) {
-          console.error("Supabase insert error:", error);
+          console.error("Supabase Error Object:", error);
+          // If 400 error, it might be due to missing user_id column
+          console.error("Check if 'analyses' table has columns: id, created_at, filename, spend, currency, ai_insights, payload");
           throw error;
         }
 
-        console.log("Supabase insert success:", result);
+        console.log("Supabase Insert Success:", result);
 
         if (result && result[0]) {
           const inserted_id = result[0].id;
           localStorage.setItem('spendguard_last_id', inserted_id);
-          console.log("Persisted Supabase ID to localStorage:", inserted_id);
+          console.log("New Session Persisted (UUID):", inserted_id);
         }
 
-        loadHistory(); // Refresh sidebar
+        loadHistory(); 
         return result ? result[0] : null;
       } catch (err) {
-        console.error("Fatal error in saveAnalysisToSupabase:", err);
+        console.error("Critical Failure in saveAnalysisToSupabase:", err);
       }
     }
 
@@ -1932,8 +1936,12 @@
 
       // Session Restoration Logic
       const lastId = localStorage.getItem("spendguard_last_id");
+      
+      // UUID Regex Validation (prevents crashes from legacy backend IDs)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lastId);
 
-      if (lastId) {
+      if (lastId && isUUID) {
+        statusText.innerText = "Restoring latest session...";
         try {
           const record = await getFullAnalysis(lastId);
 
@@ -1945,6 +1953,9 @@
         } catch (err) {
           console.warn("Session restore failed:", err);
         }
+      } else if (lastId && !isUUID) {
+        console.log("Legacy session ID detected. Cleaning up...");
+        localStorage.removeItem("spendguard_last_id");
       }
 
       statusText.innerText = "Systems Online. Welcome, CFO.";
