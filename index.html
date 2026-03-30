@@ -1410,14 +1410,20 @@
     });
 
     function startThinkingAnimation() {
-      const statuses = ["Analyzing parameters...", "Scanning for anomalies...", "Drafting CFO Report..."];
+      const statuses = [
+        "Analyzing parameters...", 
+        "Parsing transaction ledger...",
+        "Scanning for anomalies...", 
+        "Running AI intelligence...",
+        "Drafting executive report..."
+      ];
       let sIdx = 0;
       thinkingText.innerText = statuses[0];
       thinkingIndicator.style.display = 'flex';
       thinkingInterval = setInterval(() => {
         sIdx = (sIdx + 1) % statuses.length;
         thinkingText.innerText = statuses[sIdx];
-      }, 3000);
+      }, 2500);
     }
 
     function stopThinkingAnimation() {
@@ -1528,6 +1534,16 @@
       if (isProcessing) return;
 
       isProcessing = true;
+      
+      // Disable UI elements
+      promptInput.disabled = true;
+      const sendBtn = document.querySelector('.input-box .material-symbols-rounded[style*="cursor: pointer"]');
+      if (sendBtn) sendBtn.style.pointerEvents = 'none';
+      if (sendBtn) sendBtn.style.opacity = '0.5';
+
+      // Switch to Analysis View immediately
+      showAnalysis();
+
       appendUserMessage(text || "Please analyze this file.", hasFile);
       promptInput.value = '';
       autoResize(promptInput);
@@ -1610,6 +1626,13 @@
         await streamHtmlMessage(`<div class="alert-box alert-error"><span class="material-symbols-rounded">error</span> <span>${msg}</span></div>`);
       } finally {
         isProcessing = false;
+        promptInput.disabled = false;
+        const sendBtn = document.querySelector('.input-box .material-symbols-rounded[style*="cursor: pointer"]');
+        if (sendBtn) {
+          sendBtn.style.pointerEvents = 'auto';
+          sendBtn.style.opacity = '1';
+        }
+        promptInput.focus();
       }
     }
 
