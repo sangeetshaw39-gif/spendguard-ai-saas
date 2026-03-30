@@ -1930,17 +1930,18 @@
 
       // Session Restoration Logic
       const lastId = localStorage.getItem("spendguard_last_id");
+
       if (lastId) {
-        statusText.innerText = "Restoring latest session...";
         try {
           const record = await getFullAnalysis(lastId);
+
           if (record && record.payload) {
             currentData = record.payload;
             showAnalysis();
             await displayAnalysis(currentData, record.filename);
           }
         } catch (err) {
-          console.warn("Supabase restoration failed, proceeding to clean dashboard.", err);
+          console.warn("Session restore failed:", err);
         }
       }
 
