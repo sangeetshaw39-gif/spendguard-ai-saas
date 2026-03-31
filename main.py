@@ -31,26 +31,32 @@ else:
 security = HTTPBearer()
 
 async def get_current_user(auth: HTTPAuthorizationCredentials = Security(security)):
-    """Verifies the Supabase session token using the Supabase SDK."""
+    """Verifies the Supabase session token securely with defensive checks."""
     if not supabase:
         raise HTTPException(status_code=500, detail="Backend configuration error: Supabase client missing.")
         
     try:
         token = auth.credentials
         # Let Supabase handle the verification logic
-        # This is more robust than manual JWT decoding
         user_res = supabase.auth.get_user(token)
         
-        if not user_res or not user_res.user:
+        # 🔥 SAFETY CHECK: Ensure we have a valid response and user object
+        if not user_res or not hasattr(user_res, 'user') or not user_res.user:
+            print("🔒 [AUTH] Failed: user_res or user_res.user is missing.")
             raise HTTPException(status_code=401, detail="Invalid session.")
             
+        user = user_res.user
+        print(f"✅ [AUTH] Verified: {user.email}")
+        
         return {
-            "sub": user_res.user.id,
-            "email": user_res.user.email,
-            "id": user_res.user.id  # Matches common payload expectations
+            "sub": user.id,
+            "email": user.email,
+            "id": user.id
         }
     except Exception as e:
-        print(f"🔒 Auth Error: {str(e)}")
+        print(f"❌ [AUTH ERROR]: {str(e)}")
+        # If it's already an HTTPException, re-raise it
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=401, detail="Authentication failed.")
 
 # -------------------------------
