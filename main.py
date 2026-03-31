@@ -9,6 +9,38 @@ import datetime
 import uvicorn
 from spendguard_engine import run_pipeline
 from ai_layer import generate_chat_response
+import jwt
+from fastapi import Depends, HTTPException, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Supabase Auth Configuration
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+security = HTTPBearer()
+
+async def get_current_user(auth: HTTPAuthorizationCredentials = Security(security)):
+    """Decodes and verifies the Supabase session token."""
+    if not SUPABASE_JWT_SECRET:
+        raise HTTPException(status_code=500, detail="Backend configuration error: JWT Secret missing.")
+        
+    try:
+        token = auth.credentials
+        # Supabase uses HS256 and standard JWT claims
+        payload = jwt.decode(
+            token, 
+            SUPABASE_JWT_SECRET, 
+            algorithms=["HS256"], 
+            options={"verify_aud": False} # Supabase uses project-specific audience
+        )
+        return payload.get("sub") # Returns the User UUID
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 app = FastAPI()
 
@@ -50,9 +82,11 @@ def health():
 
 # Upload + Analyze
 @app.post("/analyze")
-async def analyze_file(file: UploadFile = File(...)):
-    
-    print("📥 File received:", file.filename)
+async def analyze_file(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user)
+):
+    print(f"📥 File received from user {user_id}: {file.filename}")
 
     file_location = f"temp_{file.filename}"
     
@@ -232,8 +266,8 @@ def rename_history_item(id: str, req: RenameRequest):
     return {"status": "error", "message": "File not found"}
 
 @app.post("/history/{id}/reanalyze")
-def reanalyze_history_item(id: str):
-    print(f"🔄 Re-analyzing Report ID: {id}")
+def reanalyze_history_item(id: str, user_id: str = Depends(get_current_user)):
+    print(f"🔄 Re-analyzing Report ID: {id} for user {user_id}")
     payload_path = os.path.join(HISTORY_DIR, f"payload_{id}.json")
     
     if not os.path.exists(payload_path):
@@ -271,8 +305,9 @@ def reanalyze_history_item(id: str):
     return {"status": "error", "message": "File not found"}
 
 @app.post("/chat")
-def chat_endpoint(request: ChatRequest):
+def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)):
     try:
+        print(f"💬 Chat request from user {user_id}")
         response = generate_chat_response(request.user_query, request.context)
         return {"status": "success", "response": response}
     except Exception as e:

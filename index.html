@@ -1509,15 +1509,29 @@
       loadHistory();
     }
 
-    async function fetchWithRetry(url, options, retries = 2) {
+    async function fetchWithRetry(url, options = {}, retries = 2) {
+      // Auto-inject Supabase Auth Token
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+          if (!options.headers) options.headers = {};
+          options.headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      } catch (err) {
+        console.warn("Auth Header Injection Error:", err);
+      }
+
       try {
         const res = await fetch(url, options);
         if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error("Authentication required. Please login again.");
+          }
           throw new Error("Server error: " + res.status);
         }
         return res;
       } catch (err) {
-        if (retries > 0) {
+        if (retries > 0 && err.message.includes("Server error")) {
           console.log("⚡ Backend is waking up... please wait a few seconds");
           await new Promise(r => setTimeout(r, 5000));
           return fetchWithRetry(url, options, retries - 1);
