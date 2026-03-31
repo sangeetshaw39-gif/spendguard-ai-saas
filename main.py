@@ -117,6 +117,14 @@ def generate_alerts(memory):
     memory["alerts"] = alerts
     return memory
 
+async def check_admin(user_payload: dict = Depends(get_current_user)):
+    """Verifies if the current user is the Master Admin."""
+    admin_email = "sangeetshaw39@gmail.com"
+    if user_payload.get("email") != admin_email:
+        print(f"🚫 Unauthorized Admin access attempt by {user_payload.get('email')}")
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access only.")
+    return user_payload
+
 # -------------------------------
 # USER MEMORY ENGINE
 # -------------------------------
@@ -131,7 +139,7 @@ def get_user_memory(user_id: str):
         print("Memory Fetch Failed:", e)
         return {}
 
-def update_user_memory(user_id: str, insights: dict):
+def update_user_memory(user_id: str, insights: dict, email: str = None):
     if not supabase: return
     try:
         # Fetch existing
@@ -156,6 +164,10 @@ def update_user_memory(user_id: str, insights: dict):
         # Baseline details
         memory["last_total_spend"] = insights.get("total_spend")
         memory["total_analyses_count"] = memory.get("total_analyses_count", 0) + 1
+        
+        # Admin Metadata: Store email if provided
+        if email:
+            memory["email"] = email
 
         supabase.table("user_memory").upsert({
             "user_id": user_id,
@@ -226,7 +238,7 @@ async def analyze_file(
         result = run_pipeline(file_location, memory)
 
         # 3. Update Memory after successful analysis
-        update_user_memory(user_id, result["insights"])
+        update_user_memory(user_id, result["insights"], user_payload.get("email"))
 
         print("✅ Pipeline completed")
 
@@ -434,14 +446,61 @@ def reanalyze_history_item(id: str, user_id: str = Depends(get_current_user)):
 
     return {"status": "error", "message": "File not found"}
 
-@app.post("/chat")
-def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)):
+# -------------------------------
+# ADMIN ENDPOINTS (Restricted)
+# -------------------------------
+
+@app.get("/admin/stats")
+async def get_admin_stats(admin: dict = Depends(check_admin)):
+    if not supabase: return {"status": "error", "message": "Supabase not connected"}
+    
     try:
-        print(f"💬 Chat request from user {user_id}")
-        response = generate_chat_response(request.user_query, request.context)
-        return {"status": "success", "response": response}
+        # Total Users (from memory table)
+        users_res = supabase.table("user_memory").select("user_id", count="exact").execute()
+        total_users = users_res.count if hasattr(users_res, 'count') else len(users_res.data)
+
+        # Global Analysis Stats (from analyses table)
+        analyses_res = supabase.table("analyses").select("spend").execute()
+        total_analyses = len(analyses_res.data)
+        total_spend = sum([item.get("spend", 0) for item in analyses_res.data])
+
+        return {
+            "status": "success",
+            "total_users": total_users,
+            "total_analyses": total_analyses,
+            "total_spend": total_spend
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/admin/users")
+async def get_admin_users(admin: dict = Depends(check_admin)):
+    if not supabase: return {"status": "error", "message": "Supabase not connected"}
+    
+    try:
+        res = supabase.table("user_memory").select("*").order("updated_at", desc=True).execute()
+        return {"status": "success", "users": res.data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/admin/user/{user_id}")
+async def delete_user_data(user_id: str, admin: dict = Depends(check_admin)):
+    if not supabase: return {"status": "error", "message": "Supabase not connected"}
+    
+    try:
+        # Delete Memory
+        supabase.table("user_memory").delete().eq("user_id", user_id).execute()
+        # Delete all Analyses
+        supabase.table("analyses").delete().eq("user_id", user_id).execute()
+        
+        return {"status": "success", "message": f"Data for user {user_id} deleted."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/admin")
+def admin_page():
+    with open("admin.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 if __name__ == "__main__":
     # Render binds dynamically to a port provided by the environment
