@@ -31,26 +31,27 @@ else:
 security = HTTPBearer()
 
 async def get_current_user(auth: HTTPAuthorizationCredentials = Security(security)):
-    """Decodes and verifies the Supabase session token."""
-    if not SUPABASE_JWT_SECRET:
-        raise HTTPException(status_code=500, detail="Backend configuration error: JWT Secret missing.")
+    """Verifies the Supabase session token using the Supabase SDK."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Backend configuration error: Supabase client missing.")
         
     try:
         token = auth.credentials
-        # Supabase uses HS256 and standard JWT claims
-        payload = jwt.decode(
-            token, 
-            SUPABASE_JWT_SECRET, 
-            algorithms=["HS256"], 
-            options={"verify_aud": False} # Supabase uses project-specific audience
-        )
-        return payload 
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid authentication token")
+        # Let Supabase handle the verification logic
+        # This is more robust than manual JWT decoding
+        user_res = supabase.auth.get_user(token)
+        
+        if not user_res or not user_res.user:
+            raise HTTPException(status_code=401, detail="Invalid session.")
+            
+        return {
+            "sub": user_res.user.id,
+            "email": user_res.user.email,
+            "id": user_res.user.id  # Matches common payload expectations
+        }
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        print(f"🔒 Auth Error: {str(e)}")
+        raise HTTPException(status_code=401, detail="Authentication failed.")
 
 # -------------------------------
 # INTELLIGENCE LAYER MODULES
