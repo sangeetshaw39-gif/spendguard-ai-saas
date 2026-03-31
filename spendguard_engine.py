@@ -1,5 +1,6 @@
 import pandas as pd
 from ai_layer import categorize_transactions, detect_smart_anomalies, generate_ai_insights
+import json
 
 # -------------------------------
 # COLUMN MAPPING LOGIC
@@ -200,7 +201,9 @@ def generate_insights(df, currency="₹"):
 # -------------------------------
 
 def run_pipeline(file_path, memory=None):
-    # ... (existing file loading)
+    # -------------------------------
+    # LOAD FILE
+    # -------------------------------
     if file_path.endswith(".csv"):
         df = pd.read_csv(file_path)
     elif file_path.endswith(".xlsx"):
@@ -216,12 +219,29 @@ def run_pipeline(file_path, memory=None):
     # -------------------------------
     # COLUMN MAPPING
     # -------------------------------
-    # ... (skipping some logic)
     column_map = map_columns(df)
+
+    # -------------------------------
+    # CLEAN FULL DATA & DETECT CURRENCY
+    # -------------------------------
     df_clean, detected_currency, warnings = clean_data(df, column_map)
+
+    print(f"✅ Rows after cleaning: {len(df_clean)}")
+
+    # -------------------------------
+    # BASIC INSIGHTS (FULL DATA ✅)
+    # -------------------------------
     basic_insights = generate_insights(df_clean, detected_currency)
+
+    # -------------------------------
+    # AI CATEGORY & ANOMALIES (FULL DATA)
+    # -------------------------------
     df_clean["ai_category"] = df_clean["category"]
     df_clean, anomalies = detect_smart_anomalies(df_clean)
+
+    # -------------------------------
+    # SAMPLE DATA FOR AI
+    # -------------------------------
     sample_df = df_clean.head(5).copy()
 
     # -------------------------------
@@ -232,7 +252,7 @@ def run_pipeline(file_path, memory=None):
         if not ai_insights or "unavailable" in ai_insights.lower():
             raise Exception("AI failed")
     except:
-        ai_insights = "<div class='alert-box alert-warning' style='margin-bottom:16px;'><span class='material-symbols-rounded'>cloud_off</span> <span>AI connection temporarily unavailable. Displaying Smart Heuristic Insights:</span></div>" + generate_fallback_insights(basic_insights)
+        ai_insights = "<div class='alert-box alert-error' style='margin-bottom:16px;'><span class='material-symbols-rounded'>cloud_off</span> <span>AI connection temporarily unavailable. Displaying Rule-Based Contextual Insights:</span></div>" + generate_fallback_insights(basic_insights, memory)
 
     return {
         "clean_data": sample_df,   # sample shown
@@ -244,20 +264,16 @@ def run_pipeline(file_path, memory=None):
         "warnings": warnings
     }
 
+
 # -------------------------------
-# CLI TEST
+# DATA EXPORT & FALLBACK LOGIC
 # -------------------------------
 
-if __name__ == "__main__":
-    result = run_pipeline("messy_expense_data.csv")
-
-    print("\n📊 Column Mapping:", result["column_map"])
-    print("\n💰 Insights:", result["insights"])
-    print("\n🤖 AI Insights:\n", result["ai_insights"])
-    print("\n🚨 Anomalies Count:", len(result["anomalies"]))
-
-def generate_fallback_insights(insights):
+def generate_fallback_insights(insights, memory=None):
     total = insights.get("total_spend", 0)
+    trend = (memory or {}).get("trend", "stable")
+    risk_score = (memory or {}).get("risk_score", 0)
+    alerts = (memory or {}).get("alerts", [])
     
     top_cat = ("Unknown", 0)
     if insights.get("top_categories"):
@@ -273,19 +289,31 @@ def generate_fallback_insights(insights):
     currency = insights.get("currency", "₹")
     total_fmt = f"{currency}{total:,.0f}" if total < 1000000 else f"{currency}{total/1000000:.1f}M"
 
+    # Dynamic "Cost Reduction" recommendation based on Trend
+    trend_advice = "The system is currently identifying an **increasing spending trend**. Immediate budget tightening is advised." if trend == "increasing" else f"General savings identified in `{top_cat[0]}` outlay."
+    
+    # Dynamic "Risk Alert" priority based on Risk Score
+    risk_priority = "🚨 **HIGH PRIORITY AUDIT REQUIRED**" if risk_score > 60 else "⚠️ **Standard Risk Flagging**"
+    
+    # Predictive Alert Injection
+    alert_html = "".join([f"<li style='margin-bottom:4px;'>{a}</li>" for a in alerts]) if alerts else "<li>No active risk alerts at this time.</li>"
+
     return f"""
-### Cost Reduction Opportunities
-- **Problem:** Intense structural spending in the `{top_cat[0]}` category, natively capturing **{category_percent:.1f}%** of your entire operational outlay.
-- **Impact:** Over-allocation starves crucial growth initiatives of liquidity and severely restricts available cash reserves limit.
-- **Recommendation:** Enact an immediate freeze on non-essential `{top_cat[0]}` purchases and systematically audit active corporate subscriptions for redundancies.
+### 📊 Cost Reduction & Efficiency
+- **Observed Trend:** {trend_advice}
+- **Economic Impact:** Intense structural spending in the `{top_cat[0]}` category, capturing **{category_percent:.1f}%** of your operational outlay.
+- **Executive Action:** Systematically audit active corporate subscriptions for redundancies in your top-heavy categories.
 
-### Risk Alerts
-- **Problem:** Extreme dependency on a single centralized third-party vendor (**{top_vendor[0]}**), currently consuming **{vendor_percent:.1f}%** of all expenditures.
-- **Impact:** Creates a catastrophic single point of failure and eliminates any leverage during contract renewals or unexpected price hikes.
-- **Recommendation:** Immediately solicit competitive, blind-bid proposals from at least two alternative regional providers by the end of this quarter.
+### ⚠️ Risk Mitigation & Compliance
+- **Observed Trend:** {risk_priority}.
+- **Economic Impact:** High dependency on a single vendor ({top_vendor[0]}), currently consuming **{vendor_percent:.1f}%** of all expenditures.
+- **Executive Action:** Solicit competitive bids from alternative providers to mitigate single-point dependency risk.
 
-### Strategic Actions
-- **Problem:** Aggregate spend velocity and vendor routing is currently decentralized, operating without a top-down visibility net.
-- **Impact:** Exponentially aggregates the probability of phantom-billing, ghost duplicate charges, or silent subscription creep.
-- **Recommendation:** Enforce a hard Purchase Order (PO) pre-approval workflow for any singular outbound expense exceeding {currency}5,000.
+### 📈 Strategic Growth Actions
+- **Observed Trend:** Intelligence Profile currently shows the following active alerts:
+<ul style="margin: 10px 0; color: #D93025; font-weight: 500;">
+{alert_html}
+</ul>
+- **Economic Impact:** Potential for phantom-billing or subscription creep in the current data profile.
+- **Executive Action:** Enforce a hard Purchase Order (PO) pre-approval workflow for any outbound expense exceeding {currency}5,000.
 """
