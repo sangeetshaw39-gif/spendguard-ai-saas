@@ -110,10 +110,13 @@ def generate_ai_insights(insights_dict, memory=None):
     prompt = f"""
     You are an elite AI CFO analyzing corporate expense data.
     
-    USER HISTORICAL MEMORY (CONTEXT):
+    USER HISTORICAL INTELLIGENCE:
     {memory_context}
 
-    Use the historical memory above to personalize your insights. If this is the user's first analysis, provide baseline guidance.
+    IMPORTANT:
+    - Use 'trend', 'risk_score', and 'alerts' from the historical intelligence above to personalize your insights.
+    - Provide forward-looking strategic decisions, not just historical summaries.
+    - Specifically highlight risks proactively if the risk_score is high or alerts are present.
 
     Upgrade your analysis from basic findings to highly actionable 'Decision Intelligence'.
     Break down your response exactly into the following 3 sections using exactly these headers:
@@ -123,7 +126,7 @@ def generate_ai_insights(insights_dict, memory=None):
     ### 📈 Strategic Growth Actions
     
     Under each header, provide a highly detailed insight using this exact structural format:
-    - **Observed Trend:** [Detailed description of the spending pattern]
+    - **Observed Trend:** [Detailed description of the spending pattern including historical context]
     - **Economic Impact:** [Quantifiable risk or cash-flow constraint]
     - **Executive Action:** [Concrete, specific CFO directive to resolve or capitalize on this]
 

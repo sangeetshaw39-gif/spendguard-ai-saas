@@ -53,6 +53,71 @@ async def get_current_user(auth: HTTPAuthorizationCredentials = Security(securit
         raise HTTPException(status_code=401, detail=str(e))
 
 # -------------------------------
+# INTELLIGENCE LAYER MODULES
+# -------------------------------
+
+def calculate_trend(memory, current_spend):
+    history = memory.get("spend_history", [])
+    history.append(current_spend)
+    # Keep last 5 records for rolling analysis
+    history = history[-5:]
+    memory["spend_history"] = history
+
+    if len(history) >= 2:
+        if history[-1] > history[-2]:
+            memory["trend"] = "increasing"
+        elif history[-1] < history[-2]:
+            memory["trend"] = "decreasing"
+        else:
+            memory["trend"] = "stable"
+    else:
+        memory["trend"] = "baseline"
+    return memory
+
+def calculate_risk(memory, insights):
+    anomalies = insights.get("anomalies_count", 0)
+    spend = insights.get("total_spend", 0)
+    risk = 0
+
+    if anomalies > 5:
+        risk += 40
+    if spend > 100000:
+        risk += 30
+    if memory.get("trend") == "increasing":
+        risk += 20
+        
+    memory["risk_score"] = min(risk, 100)
+    return memory
+
+def update_vendor_intelligence(memory, insights):
+    vendors = insights.get("top_vendors", {})
+    vendor_risk = memory.get("vendor_risk", {})
+
+    for vendor, amount in vendors.items():
+        if vendor not in vendor_risk:
+            vendor_risk[vendor] = 0
+        if amount > 50000:
+            vendor_risk[vendor] += 10
+            
+    memory["vendor_risk"] = vendor_risk
+    memory["top_vendors_snapshot"] = list(vendors.keys())
+    return memory
+
+def generate_alerts(memory):
+    alerts = []
+    if memory.get("trend") == "increasing":
+        alerts.append("Spending is rising consistently")
+    if memory.get("risk_score", 0) > 60:
+        alerts.append("High financial risk detected")
+    
+    for vendor, score in memory.get("vendor_risk", {}).items():
+        if score > 50:
+            alerts.append(f"Vendor {vendor} shows risk pattern")
+            
+    memory["alerts"] = alerts
+    return memory
+
+# -------------------------------
 # USER MEMORY ENGINE
 # -------------------------------
 
@@ -71,15 +136,25 @@ def update_user_memory(user_id: str, insights: dict):
     try:
         # Fetch existing
         memory = get_user_memory(user_id)
-
-        # Merge Logic
-        memory["last_total_spend"] = insights.get("total_spend")
-        if "top_categories" in insights:
-            memory["top_categories"] = list(insights["top_categories"].keys())
-        if "top_vendors" in insights:
-            memory["top_vendors"] = list(insights["top_vendors"].keys())
         
-        # Aggregation: count of analyses
+        # Initialize Intelligence if missing
+        if "spend_history" not in memory:
+            memory.update({
+                "spend_history": [],
+                "trend": "baseline",
+                "risk_score": 0,
+                "vendor_risk": {},
+                "alerts": []
+            })
+
+        # Run Intelligence Sequence
+        memory = calculate_trend(memory, insights.get("total_spend", 0))
+        memory = calculate_risk(memory, insights)
+        memory = update_vendor_intelligence(memory, insights)
+        memory = generate_alerts(memory)
+
+        # Baseline details
+        memory["last_total_spend"] = insights.get("total_spend")
         memory["total_analyses_count"] = memory.get("total_analyses_count", 0) + 1
 
         supabase.table("user_memory").upsert({
@@ -87,7 +162,7 @@ def update_user_memory(user_id: str, insights: dict):
             "memory": memory,
             "updated_at": datetime.datetime.utcnow().isoformat()
         }).execute()
-        print(f"🧠 Memory updated for user {user_id}")
+        print(f"🧠 Intelligence updated for user {user_id}")
     except Exception as e:
         print("Memory Update Failed:", e)
 

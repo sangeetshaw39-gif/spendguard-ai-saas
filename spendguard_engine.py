@@ -184,12 +184,14 @@ def generate_insights(df, currency="₹"):
     total_spend = float(df["amount"].sum())
     top_categories = df.groupby("category")["amount"].sum().sort_values(ascending=False).head(5).to_dict()
     top_vendors = df.groupby("vendor")["amount"].sum().sort_values(ascending=False).head(5).to_dict()
+    anomalies_count = int(df.get("anomaly", [False]).sum()) if "anomaly" in df.columns else 0
 
     return {
         "currency": currency,
         "total_spend": total_spend,
         "top_categories": top_categories,
-        "top_vendors": top_vendors
+        "top_vendors": top_vendors,
+        "anomalies_count": anomalies_count
     }
 
 
