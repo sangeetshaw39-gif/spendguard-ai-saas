@@ -251,21 +251,29 @@
                 const statsResponse = await fetch(`${API_BASE_URL}/admin/stats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                
+                if (!statsResponse.ok) throw new Error(`Backend Error: ${statsResponse.status}`);
+                
                 const stats = await statsResponse.json();
                 
-                document.getElementById('total-users').innerText = stats.total_users;
-                document.getElementById('total-analyses').innerText = stats.total_analyses;
-                document.getElementById('total-spend').innerText = `₹${stats.total_spend.toLocaleString()}`;
+                // Defensive updates
+                document.getElementById('total-users').innerText = stats.total_users ?? 0;
+                document.getElementById('total-analyses').innerText = stats.total_analyses ?? 0;
+                document.getElementById('total-spend').innerText = `₹${(stats.total_spend ?? 0).toLocaleString()}`;
 
                 // Fetch Users
                 const usersResponse = await fetch(`${API_BASE_URL}/admin/users`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                const userData = await usersResponse.json();
-                renderUserTable(userData.users, token);
+                
+                if (usersResponse.ok) {
+                    const userData = await usersResponse.json();
+                    renderUserTable(userData.users || [], token);
+                }
 
             } catch (err) {
-                console.error("Stats fetch failed", err);
+                console.error("Dashboard Sync Failed:", err);
+                document.getElementById('admin-info').innerHTML += ` <span style="color:var(--accent-red)">| Sync Error: Backend Offline</span>`;
             }
         }
 
