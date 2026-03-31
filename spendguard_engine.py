@@ -197,10 +197,8 @@ def generate_insights(df, currency="₹"):
 # MAIN PIPELINE FUNCTION
 # -------------------------------
 
-def run_pipeline(file_path):
-    # -------------------------------
-    # LOAD FILE
-    # -------------------------------
+def run_pipeline(file_path, memory=None):
+    # ... (existing file loading)
     if file_path.endswith(".csv"):
         df = pd.read_csv(file_path)
     elif file_path.endswith(".xlsx"):
@@ -216,36 +214,19 @@ def run_pipeline(file_path):
     # -------------------------------
     # COLUMN MAPPING
     # -------------------------------
+    # ... (skipping some logic)
     column_map = map_columns(df)
-
-    # -------------------------------
-    # CLEAN FULL DATA & DETECT CURRENCY
-    # -------------------------------
     df_clean, detected_currency, warnings = clean_data(df, column_map)
-
-    print(f"✅ Rows after cleaning: {len(df_clean)}")
-
-    # -------------------------------
-    # BASIC INSIGHTS (FULL DATA ✅)
-    # -------------------------------
     basic_insights = generate_insights(df_clean, detected_currency)
-
-    # -------------------------------
-    # AI CATEGORY & ANOMALIES (FULL DATA)
-    # -------------------------------
     df_clean["ai_category"] = df_clean["category"]
     df_clean, anomalies = detect_smart_anomalies(df_clean)
-
-    # -------------------------------
-    # SAMPLE DATA FOR AI
-    # -------------------------------
     sample_df = df_clean.head(5).copy()
 
     # -------------------------------
     # AI INSIGHTS (ON SUMMARY ONLY)
     # -------------------------------
     try:
-        ai_insights = generate_ai_insights(basic_insights)
+        ai_insights = generate_ai_insights(basic_insights, memory)
         if not ai_insights or "unavailable" in ai_insights.lower():
             raise Exception("AI failed")
     except:

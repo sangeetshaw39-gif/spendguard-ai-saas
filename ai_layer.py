@@ -99,16 +99,22 @@ def detect_smart_anomalies(df):
 # AI INSIGHTS
 # -------------------------------
 
-def generate_ai_insights(insights_dict):
+def generate_ai_insights(insights_dict, memory=None):
     if not client:
         print("⚠️ GEMINI_API_KEY missing. Falling back to offline insights.")
         raise Exception("AI Unavailable")
 
     insights_text = json.dumps(insights_dict, indent=2)
+    memory_context = json.dumps(memory or {}, indent=2)
 
     prompt = f"""
     You are an elite AI CFO analyzing corporate expense data.
     
+    USER HISTORICAL MEMORY (CONTEXT):
+    {memory_context}
+
+    Use the historical memory above to personalize your insights. If this is the user's first analysis, provide baseline guidance.
+
     Upgrade your analysis from basic findings to highly actionable 'Decision Intelligence'.
     Break down your response exactly into the following 3 sections using exactly these headers:
     
@@ -123,7 +129,7 @@ def generate_ai_insights(insights_dict):
 
     Do NOT deviate from this structure. Use sharp, executive, and decisive language.
 
-    Data:
+    CURRENT DATA:
     {insights_text}
     """
 

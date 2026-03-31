@@ -9,6 +9,7 @@ import datetime
 import uvicorn
 from spendguard_engine import run_pipeline
 from ai_layer import generate_chat_response
+from supabase import create_client
 import jwt
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -16,8 +17,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Supabase Auth Configuration
+# Supabase Configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY") # Use Service Key for Backend Admin tasks
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+    print("⚠️ Supabase Credentials missing. User Memory will be disabled.")
+    supabase = None
+else:
+    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
 security = HTTPBearer()
 
 async def get_current_user(auth: HTTPAuthorizationCredentials = Security(security)):
@@ -34,13 +44,52 @@ async def get_current_user(auth: HTTPAuthorizationCredentials = Security(securit
             algorithms=["HS256"], 
             options={"verify_aud": False} # Supabase uses project-specific audience
         )
-        return payload.get("sub") # Returns the User UUID
+        return payload 
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid authentication token")
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+# -------------------------------
+# USER MEMORY ENGINE
+# -------------------------------
+
+def get_user_memory(user_id: str):
+    if not supabase: return {}
+    try:
+        from postgrest.exceptions import APIError
+        res = supabase.table("user_memory").select("memory").eq("user_id", user_id).maybe_single().execute()
+        return res.data["memory"] if (res.data and "memory" in res.data) else {}
+    except Exception as e:
+        print("Memory Fetch Failed:", e)
+        return {}
+
+def update_user_memory(user_id: str, insights: dict):
+    if not supabase: return
+    try:
+        # Fetch existing
+        memory = get_user_memory(user_id)
+
+        # Merge Logic
+        memory["last_total_spend"] = insights.get("total_spend")
+        if "top_categories" in insights:
+            memory["top_categories"] = list(insights["top_categories"].keys())
+        if "top_vendors" in insights:
+            memory["top_vendors"] = list(insights["top_vendors"].keys())
+        
+        # Aggregation: count of analyses
+        memory["total_analyses_count"] = memory.get("total_analyses_count", 0) + 1
+
+        supabase.table("user_memory").upsert({
+            "user_id": user_id,
+            "memory": memory,
+            "updated_at": datetime.datetime.utcnow().isoformat()
+        }).execute()
+        print(f"🧠 Memory updated for user {user_id}")
+    except Exception as e:
+        print("Memory Update Failed:", e)
 
 app = FastAPI()
 
@@ -84,8 +133,9 @@ def health():
 @app.post("/analyze")
 async def analyze_file(
     file: UploadFile = File(...),
-    user_id: str = Depends(get_current_user)
+    user_payload: dict = Depends(get_current_user)
 ):
+    user_id = user_payload.get("sub")
     print(f"📥 File received from user {user_id}: {file.filename}")
 
     file_location = f"temp_{file.filename}"
@@ -94,9 +144,14 @@ async def analyze_file(
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        print("⚙️ Running pipeline...")
+        # 1. Fetch Memory
+        memory = get_user_memory(user_id)
+        
+        # 2. Run Pipeline with Memory
+        result = run_pipeline(file_location, memory)
 
-        result = run_pipeline(file_location)
+        # 3. Update Memory after successful analysis
+        update_user_memory(user_id, result["insights"])
 
         print("✅ Pipeline completed")
 
