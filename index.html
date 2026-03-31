@@ -1039,6 +1039,9 @@
     <button class="new-chat-btn" onclick="startNewAnalysis()">
       <span class="material-symbols-rounded" style="font-size:18px;">add</span> New Analysis
     </button>
+    <button id="admin-sidebar-link" class="new-chat-btn" style="display:none; margin-top:12px; border-color: #FBBC05; color: #FBBC05;" onclick="window.location.href='/admin'">
+      <span class="material-symbols-rounded" style="font-size:18px;">admin_panel_settings</span> Master Admin
+    </button>
     <div
       style="margin-top: 24px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform:uppercase;">
       Recent Analyses</div>
@@ -1174,6 +1177,13 @@
         isAuthReady = true;
 
         updateAuthUI();
+        
+        // Master Admin Check
+        const adminBtn = document.getElementById('admin-sidebar-link');
+        if (adminBtn) {
+          adminBtn.style.display = (currentUser?.email === "sangeetshaw39@gmail.com") ? "flex" : "none";
+        }
+
         renderDashboard(); // Task: Render dashboard on session change
 
         // Auto-refresh history when login state changes
