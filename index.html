@@ -1084,7 +1084,7 @@
         <p style="margin: 0 auto 2rem auto; max-width: 600px; text-align: center;">Upload your transaction ledger to instantly uncover hidden costs, detect anomalies, and receive actionable
           financial decisions.</p>
 
-        <div class="benefits-grid">
+        <div class="benefits-grid" id="benefitsGrid">
           <div class="benefit-card">
             <div class="material-symbols-rounded benefit-icon">search_insights</div>
             <div class="benefit-title">Detect hidden costs</div>
@@ -1174,6 +1174,7 @@
         isAuthReady = true;
 
         updateAuthUI();
+        renderDashboard(); // Task: Render dashboard on session change
 
         // Auto-refresh history when login state changes
         if (currentUser && typeof loadHistory === 'function') {
@@ -1324,8 +1325,9 @@
 
     // State Control Functions
     function showHero() {
-      document.getElementById("heroView").style.display = "block";
+      document.getElementById("heroView").style.display = "flex";
       document.getElementById("chatStream").style.display = "none";
+      renderDashboard(); // Task: Refresh stats when showing home
     }
 
     function showAnalysis() {
@@ -1396,6 +1398,96 @@
     );
 
     // Supabase DB Operations
+    async function getUserAnalytics() {
+      if (!currentUser?.id) return null;
+      try {
+        const { data, error } = await supabaseClient
+          .from('analyses')
+          .select('spend, payload')
+          .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+        if (!data) return null;
+
+        let totalSpend = 0;
+        let totalAnalyses = data.length;
+        let categoryMap = {};
+
+        data.forEach(item => {
+          totalSpend += (item.spend || 0);
+          const cats = item.payload?.insights?.top_categories || [];
+          cats.forEach(c => {
+            const name = c.category || "Other";
+            const amount = c.amount || 0;
+            categoryMap[name] = (categoryMap[name] || 0) + amount;
+          });
+        });
+
+        const topCategories = Object.entries(categoryMap)
+          .map(([category, amount]) => ({ category, amount }))
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 5);
+
+        return { totalAnalyses, totalSpend, topCategories };
+      } catch (err) {
+        console.error("Analytics Fetch Error:", err);
+        return null;
+      }
+    }
+
+    async function renderDashboard() {
+      const dashboardContainer = document.getElementById('benefitsGrid');
+      if (!dashboardContainer) return;
+
+      if (!currentUser) {
+        // Restore Guest View
+        dashboardContainer.innerHTML = `
+          <div class="benefit-card">
+            <div class="material-symbols-rounded benefit-icon">search_insights</div>
+            <div class="benefit-title">Detect hidden costs</div>
+          </div>
+          <div class="benefit-card">
+            <div class="material-symbols-rounded benefit-icon">warning</div>
+            <div class="benefit-title">Identify anomalies</div>
+          </div>
+          <div class="benefit-card">
+            <div class="material-symbols-rounded benefit-icon">query_stats</div>
+            <div class="benefit-title">Get actionable decisions</div>
+          </div>
+        `;
+        return;
+      }
+
+      const stats = await getUserAnalytics();
+      if (!stats) return;
+
+      dashboardContainer.innerHTML = `
+        <div class="benefit-card" style="text-align: left; background: rgba(66, 133, 244, 0.03); border: 1px solid rgba(66, 133, 244, 0.15);">
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Lifetime Spend</div>
+          <div style="font-size: 24px; font-weight: 700; color: #4285F4; font-family: var(--font-heading);">${formatCurrency(convertValue(stats.totalSpend, '₹', activeCurrency), activeCurrency)}</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; opacity: 0.8;">Across ${stats.totalAnalyses} analysis reports</div>
+        </div>
+        
+        <div class="benefit-card" style="text-align: left; background: rgba(155, 114, 203, 0.03); border: 1px solid rgba(155, 114, 203, 0.15);">
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Top Categories</div>
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+            ${stats.topCategories.length > 0 ? stats.topCategories.map(c => `
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                <span style="color: var(--text-high); font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 100px;">${c.category}</span>
+                <span style="color: #9B72CB; font-weight: 600;">${formatCurrency(convertValue(c.amount, '₹', activeCurrency), activeCurrency)}</span>
+              </div>
+            `).join('') : '<div style="font-size: 12px; color: var(--text-muted);">No insights yet</div>'}
+          </div>
+        </div>
+
+        <div class="benefit-card" style="text-align: left; background: rgba(217, 101, 112, 0.03); border: 1px solid rgba(217, 101, 112, 0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer;" onclick="document.getElementById('fileInput').click()">
+          <span class="material-symbols-rounded" style="font-size: 32px; color: #D96570; margin-bottom: 8px;">add_chart</span>
+          <div style="font-size: 13px; font-weight: 600; color: var(--text-high);">Start New Analysis</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; text-align: center;">Upload another expense file to see latest insights</div>
+        </div>
+      `;
+    }
+
     async function saveAnalysisToSupabase(data) {
       if (!isAuthReady) return null; // Task: Race condition protection
 
@@ -1434,6 +1526,7 @@
         }
 
         loadHistory(); 
+        renderDashboard(); // Task: Update dashboard after new analysis
         return result?.[0] || null;
       } catch (err) {
         console.error("Database Save Error:", err);
