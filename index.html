@@ -1425,12 +1425,21 @@
 
         data.forEach(item => {
           totalSpend += (item.spend || 0);
-          const cats = item.payload?.insights?.top_categories || [];
-          cats.forEach(c => {
-            const name = c.category || "Other";
-            const amount = c.amount || 0;
-            categoryMap[name] = (categoryMap[name] || 0) + amount;
-          });
+          const cats = item.payload?.insights?.top_categories || {};
+          
+          if (Array.isArray(cats)) {
+            // Handle legacy Array format
+            cats.forEach(c => {
+              const name = c.category || "Other";
+              const amount = c.amount || 0;
+              categoryMap[name] = (categoryMap[name] || 0) + amount;
+            });
+          } else {
+            // Handle new Object/Dictionary format { "Name": Amount }
+            for (const [name, amount] of Object.entries(cats)) {
+              categoryMap[name] = (categoryMap[name] || 0) + (amount || 0);
+            }
+          }
         });
 
         const topCategories = Object.entries(categoryMap)
