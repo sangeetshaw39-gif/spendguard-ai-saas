@@ -6,6 +6,7 @@
     <title>Admin Dashboard | SpendGuard AI</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script src="config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -229,13 +230,11 @@
     </div>
 
     <script>
-        // Use the same Supabase URL from the main app
-        const SUPABASE_URL = "https://msreihjizstffuydqyms.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zcmVpaGppenN0ZmZ1eWRxeW1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMDYwNzksImV4cCI6MjA1ODg4MjA3OX0.p9-8F8D-p5-8F8D-p5-8F8D-p5-8F8D-p5-8F8D-p5-8F8D";
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const API_BASE_URL = window.CONFIG?.API_BASE_URL;
+        const supabaseClient = supabase.createClient(window.CONFIG.SUPABASE_URL, window.CONFIG.SUPABASE_ANON_KEY);
 
         async function initAdmin() {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session || session.user.email !== "sangeetshaw39@gmail.com") {
                 alert("Unauthorized. Redirecting to home.");
                 window.location.href = "/";
@@ -249,7 +248,7 @@
         async function loadDashboard(token) {
             try {
                 // Fetch Stats
-                const statsResponse = await fetch('/admin/stats', {
+                const statsResponse = await fetch(`${API_BASE_URL}/admin/stats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const stats = await statsResponse.json();
@@ -259,7 +258,7 @@
                 document.getElementById('total-spend').innerText = `₹${stats.total_spend.toLocaleString()}`;
 
                 // Fetch Users
-                const usersResponse = await fetch('/admin/users', {
+                const usersResponse = await fetch(`${API_BASE_URL}/admin/users`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const userData = await usersResponse.json();
@@ -309,7 +308,7 @@
             if (!confirm(`Are you sure you want to delete all data for user ${userId}? This cannot be undone.`)) return;
 
             try {
-                const res = await fetch(`/admin/user/${userId}`, {
+                const res = await fetch(`${API_BASE_URL}/admin/user/${userId}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
