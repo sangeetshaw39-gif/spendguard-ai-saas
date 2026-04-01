@@ -38,6 +38,23 @@
         .admin-container {
             max-width: 1200px;
             margin: 0 auto;
+            width: 100%;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.3s;
+            margin-bottom: 24px;
+        }
+
+        .back-btn:hover {
+            color: var(--primary);
         }
 
         header {
@@ -227,6 +244,10 @@
 <body>
 
     <div class="admin-container">
+        <a href="/" class="back-btn">
+            <span class="material-symbols-rounded">arrow_back</span>
+            Back to Home
+        </a>
         <header>
             <h1>Admin Dashboard</h1>
             <div id="admin-info" style="color: var(--text-muted); font-size: 0.9rem;"></div>
