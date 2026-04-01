@@ -177,6 +177,51 @@
             cursor: pointer;
             color: var(--text-muted);
         }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+                margin-bottom: 30px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                margin-bottom: 30px;
+            }
+
+            .stat-card {
+                padding: 20px;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+
+            .table-container {
+                border-radius: 16px;
+                overflow-x: auto;
+            }
+
+            table {
+                min-width: 800px; /* Force scroll for table content */
+            }
+
+            .modal-content {
+                padding: 24px;
+                width: 95%;
+            }
+        }
     </style>
 </head>
 <body>
