@@ -252,7 +252,7 @@ def run_pipeline(file_path, memory=None):
         if not ai_insights or "unavailable" in ai_insights.lower():
             raise Exception("AI failed")
     except:
-        ai_insights = "<div class='alert-box alert-error' style='margin-bottom:16px;'><span class='material-symbols-rounded'>cloud_off</span> <span>AI connection temporarily unavailable. Displaying Rule-Based Contextual Insights:</span></div>" + generate_fallback_insights(basic_insights, memory)
+        ai_insights = generate_fallback_insights(basic_insights, memory)
 
     return {
         "clean_data": sample_df,   # sample shown

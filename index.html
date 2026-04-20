@@ -2359,16 +2359,22 @@
     function downloadPDF() {
       if (!currentData) return;
 
-      // Temporarily create a robust styling element specifically for PDF compilation
+      // Create PDF container with improved layout
       const reportDiv = document.createElement('div');
       reportDiv.style.padding = '40px';
-      reportDiv.style.fontFamily = 'Inter, sans-serif';
+      reportDiv.style.fontFamily = "'Inter', sans-serif";
       reportDiv.style.color = '#1F1F1F';
       reportDiv.style.background = '#FFFFFF';
-      reportDiv.style.width = '800px';
+      reportDiv.style.width = '750px';
 
       const total = formatCurrency(currentData.insights.total_spend, currentData.insights.currency);
-      const bullets = currentData.ai_insights.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+      
+      // Clean up insights for PDF (Handle headers, bolding, and bullet points)
+      let cleanedInsights = currentData.ai_insights
+        .replace(/<div.*?div>/g, '') // Remove any HTML error boxes that might be saved
+        .replace(/### (.*?)\n/g, '<h3 style="color:#000; font-size:16px; margin-top:20px; margin-bottom:10px; border-bottom:1px solid #EEE; padding-bottom:4px;">$1</h3>')
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/\n/g, '<br>');
 
       const catChartCanvas = document.querySelector('canvas[id^="catChart"]');
       const venChartCanvas = document.querySelector('canvas[id^="venChart"]');
@@ -2376,16 +2382,16 @@
       let chartHtml = '';
       if (catChartCanvas && venChartCanvas) {
         chartHtml = `
-            <div style="margin-top:40px;">
-               <h2 style="margin-bottom: 20px;">Visual Breakdown</h2>
+            <div style="margin-top:40px; page-break-before: always;">
+               <h2 style="margin-bottom: 20px; color:#4285F4; border-bottom:1px solid #4285F4; padding-bottom:8px;">Visual Data Validation</h2>
                <div style="text-align:center;">
-                  <div style="display:inline-block; width:45%; vertical-align:top; text-align:left;">
-                     <h4 style="margin-bottom:10px; color:#444746;">Top Categories</h4>
-                     <img src="${catChartCanvas.toDataURL('image/png', 1.0)}" style="width:100%; max-height:220px; object-fit:contain; border: 1px solid #E3E3E3; border-radius:12px; padding:10px;" />
+                  <div style="display:inline-block; width:46%; vertical-align:top; text-align:left;">
+                     <h4 style="margin-bottom:12px; color:#444746; font-size:13px;">Top Expense Categories</h4>
+                     <img src="${catChartCanvas.toDataURL('image/png', 1.0)}" style="width:100%; border: 1px solid #F0F0F0; border-radius:12px; padding:10px;" />
                   </div>
-                  <div style="display:inline-block; width:45%; vertical-align:top; text-align:left; margin-left:5%;">
-                     <h4 style="margin-bottom:10px; color:#444746;">Top Vendors</h4>
-                     <img src="${venChartCanvas.toDataURL('image/png', 1.0)}" style="width:100%; max-height:220px; object-fit:contain; border: 1px solid #E3E3E3; border-radius:12px; padding:10px;" />
+                  <div style="display:inline-block; width:46%; vertical-align:top; text-align:left; margin-left:4%;">
+                     <h4 style="margin-bottom:12px; color:#444746; font-size:13px;">Top Paid Vendors</h4>
+                     <img src="${venChartCanvas.toDataURL('image/png', 1.0)}" style="width:100%; border: 1px solid #F0F0F0; border-radius:12px; padding:10px;" />
                   </div>
                </div>
             </div>
@@ -2393,48 +2399,44 @@
       }
 
       reportDiv.innerHTML = `
-          <div style="border-bottom: 2px solid #4285F4; padding-bottom: 20px; margin-bottom: 30px;">
-              <h1 style="color: #4285F4; font-family: 'Outfit', sans-serif; margin: 0;">SpendGuard AI</h1>
-              <p style="margin: 0; color: #666; font-size: 14px;">Executive Spending Report</p>
+          <div style="border-bottom: 3px solid #4285F4; padding-bottom: 15px; margin-bottom: 25px;">
+              <h1 style="color: #4285F4; margin: 0; font-size: 28px;">SpendGuard AI</h1>
+              <p style="margin: 5px 0 0 0; color: #666; font-size: 14px; font-weight: 500;">Executive Efficiency & Risk Analysis Portfolio</p>
           </div>
           
-          <h2 style="margin-bottom: 15px;">Financial Snapshot</h2>
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border:none;">
-              <tr>
-                  <td width="48%" valign="top">
-                      <div style="background: #F0F4F9; padding: 20px; border-radius: 12px; border: 1px solid #EBEBEB;">
-                          <p style="margin: 0 0 5px 0; color: #444746; font-size: 14px; font-family: sans-serif;">Total Spend Assessed</p>
-                          <h2 style="margin: 0; font-size: 32px; color: #1F1F1F; font-family: sans-serif;">${total}</h2>
-                      </div>
-                  </td>
-                  <td width="4%"></td>
-                  <td width="48%" valign="top">
-                      <div style="background: #F0F4F9; padding: 20px; border-radius: 12px; border: 1px solid #EBEBEB;">
-                          <p style="margin: 0 0 5px 0; color: #444746; font-size: 14px; font-family: sans-serif;">Anomalies Detected</p>
-                          <h2 style="margin: 0; font-size: 32px; color: #1F1F1F; font-family: sans-serif;">${currentData.anomalies_count}</h2>
-                      </div>
-                  </td>
-              </tr>
-          </table>
+          <div style="margin-bottom: 30px;">
+              <h2 style="font-size: 18px; margin-bottom: 15px; color:#333;">Financial Architecture Snapshot</h2>
+              <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                  <div style="flex: 1; background: #F8F9FA; padding: 15px; border-radius: 12px; border: 1px solid #E9EEF6;">
+                      <p style="margin: 0 0 4px 0; color: #5F6368; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Gross Capital Assessed</p>
+                      <h2 style="margin: 0; font-size: 24px; color: #1F1F1F;">${total}</h2>
+                  </div>
+                  <div style="flex: 1; background: #F8F9FA; padding: 15px; border-radius: 12px; border: 1px solid #E9EEF6;">
+                      <p style="margin: 0 0 4px 0; color: #5F6368; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Strategic Anomalies</p>
+                      <h2 style="margin: 0; font-size: 24px; color: #1F1F1F;">${currentData.anomalies_count}</h2>
+                  </div>
+              </div>
+          </div>
 
-          <h2 style="margin-bottom: 15px;">CFO Decision Intelligence</h2>
-          <div style="color: #444746; line-height: 1.6; font-size: 14px; background: #F8F9FA; padding: 15px; border-radius: 8px; border: 1px solid #EBEBEB;">
-              ${bullets}
+          <div style="margin-bottom: 20px;">
+              <h2 style="font-size: 18px; margin-bottom: 15px; color:#333;">CFO Decision Intelligence</h2>
+              <div style="color: #3C4043; line-height: 1.7; font-size: 13.5px; padding: 5px 0;">
+                  ${cleanedInsights}
+              </div>
           </div>
           
           ${chartHtml}
           
-          <div style="margin-top: 50px; text-align: center; color: #999; font-size: 12px;">
-              Generated automatically by SpendGuard AI engine.
+          <div style="margin-top: 60px; border-top: 1px solid #EEE; padding-top: 15px; text-align: center; color: #9AA0A6; font-size: 11px;">
+              Confidential Executive Report | Generated by SpendGuard AI Intelligence Engine on ${new Date().toLocaleDateString()}
           </div>
       `;
 
-      // We use html2pdf.js
       const opt = {
-        margin: 1,
-        filename: `SpendGuard_Executive_Report_${Date.now()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
+        margin: [0.5, 0.5],
+        filename: `SpendGuard_Report_${Date.now()}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
       };
 
