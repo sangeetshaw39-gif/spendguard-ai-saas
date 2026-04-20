@@ -16,7 +16,7 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
-  <script src="config.js"></script>
+  <!-- Config embedded for local stability -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1189,6 +1189,27 @@
   </div>
 
   <script>
+    // Embedded Configuration for stability
+    window.CONFIG = {
+        API_BASE_URL: "http://localhost:8000",
+        SUPABASE_URL: "https://rquiglfgxitcyawxxlgc.supabase.co",
+        SUPABASE_ANON_KEY: "sb_publishable_gGBj0551esrLIJOcZh9irA_XqD21POy"
+    };
+
+    // System logic for SpendGuard UI - using config
+    const API_BASE_URL = window.CONFIG?.API_BASE_URL;
+
+    if (!API_BASE_URL) {
+      // Logic for developers: if config.js failed to load, window.CONFIG will be undefined
+      console.error("API_BASE_URL is not configured. Check config.js and server connection.");
+    }
+
+    // Initialize Supabase (Moved to top to prevent ReferenceError)
+    const supabaseClient = (window.CONFIG && window.supabase) ? window.supabase.createClient(
+      window.CONFIG.SUPABASE_URL,
+      window.CONFIG.SUPABASE_ANON_KEY
+    ) : null;
+
     // Auth State Management
     let currentUser = null;
     let authMode = 'login'; // 'login' or 'signup'
@@ -1196,6 +1217,10 @@
 
     // GLOBAL AUTH LISTENER
     document.addEventListener("DOMContentLoaded", () => {
+      if (!supabaseClient) {
+        console.error("Supabase client failed to initialize. Check config.js");
+        return;
+      }
       supabaseClient.auth.onAuthStateChange((event, session) => {
         console.log("Auth Event:", event);
         currentUser = session?.user || null;
@@ -1416,21 +1441,6 @@
       // Scroll to top
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-
-    // System logic for SpendGuard UI - using config
-    const API_BASE_URL = window.CONFIG?.API_BASE_URL;
-
-    if (!API_BASE_URL) {
-      throw new Error("API_BASE_URL is not configured. Check config.js");
-    }
-
-    console.log("Using API:", API_BASE_URL);
-
-    // Initialize Supabase
-    const supabaseClient = window.supabase.createClient(
-      window.CONFIG.SUPABASE_URL,
-      window.CONFIG.SUPABASE_ANON_KEY
-    );
 
     // Supabase DB Operations
     async function getUserAnalytics() {
