@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import shutil
@@ -139,9 +139,9 @@ async def check_admin(user_payload: dict = Depends(get_current_user)):
 def get_user_memory(user_id: str):
     if not supabase: return {}
     try:
-        from postgrest.exceptions import APIError
-        res = supabase.table("user_memory").select("memory").eq("user_id", user_id).maybe_single().execute()
-        return res.data["memory"] if (res.data and "memory" in res.data) else {}
+        # Fetch the most recent memory record for the user to prevent "multiple rows" errors
+        res = supabase.table("user_memory").select("memory").eq("user_id", user_id).order("updated_at", descending=True).limit(1).execute()
+        return res.data[0]["memory"] if (res.data and len(res.data) > 0) else {}
     except Exception as e:
         print("Memory Fetch Failed:", e)
         return {}
@@ -185,7 +185,17 @@ def update_user_memory(user_id: str, insights: dict, email: str = None):
     except Exception as e:
         print("Memory Update Failed:", e)
 
+from fastapi.staticfiles import StaticFiles
+
 app = FastAPI()
+
+# Mount static files BEFORE the home route to catch config.js, etc.
+app.mount("/static", StaticFiles(directory="."), name="static")
+
+# Explicit route for config.js at root level
+@app.get("/config.js")
+def serve_config_root():
+    return FileResponse("config.js")
 
 # Configuration
 HISTORY_DIR = "history_data"
@@ -296,6 +306,18 @@ async def analyze_file(
         response["history_id"] = history_id
 
     return response
+
+
+@app.post("/chat")
+async def chat_with_ai(req: ChatRequest):
+    """Answers financial questions based on the provided context."""
+    try:
+        response_text = generate_chat_response(req.user_query, req.context)
+        return {"status": "success", "response": response_text}
+    except Exception as e:
+        print(f"❌ [CHAT ERROR]: {str(e)}")
+        return {"status": "error", "message": "The AI assistant is temporarily unavailable."}
+
 
 @app.get("/history")
 def list_history():
