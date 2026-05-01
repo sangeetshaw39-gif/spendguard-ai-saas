@@ -139,11 +139,17 @@ async def check_admin(user_payload: dict = Depends(get_current_user)):
 def get_user_memory(user_id: str):
     if not supabase: return {}
     try:
-        # Fetch the most recent memory record for the user to prevent "multiple rows" errors
-        res = supabase.table("user_memory").select("memory").eq("user_id", user_id).order("updated_at", descending=True).limit(1).execute()
-        return res.data[0]["memory"] if (res.data and len(res.data) > 0) else {}
+        # Enforce order and limit at the query level
+        query = supabase.table("user_memory").select("memory").eq("user_id", user_id).order("updated_at", desc=True).limit(1)
+        res = query.execute()
+        
+        # Safely extract data from the list response
+        if res and hasattr(res, 'data') and len(res.data) > 0:
+            return res.data[0].get("memory", {})
+        return {}
     except Exception as e:
-        print("Memory Fetch Failed:", e)
+        # If the server complains about multiple rows despite the limit, we log it but don't crash
+        print(f"⚠️ [MEMORY] Fetch notice for {user_id}: {str(e)}")
         return {}
 
 def update_user_memory(user_id: str, insights: dict, email: str = None):
